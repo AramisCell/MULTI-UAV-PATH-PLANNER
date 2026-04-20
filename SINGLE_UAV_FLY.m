@@ -1,0 +1,145 @@
+% Angel Aramis Cell Oropeza
+clc
+close all
+clear all
+
+% Creat UAV Scenario
+simTime = 12;
+updateRate = 3;
+scene = uavScenario("UpdateRate",updateRate, "StopTime",simTime,"ReferenceLocation",[0 0 0]);
+
+% Add a gound plane.
+GrayColor = [0.6 0.6 0.6];
+addMesh(scene,"Polygon", {[0 0; 85 0; 85 85; 0 85], [-1 0]}, GrayColor);
+
+% Add Buildings
+GreenColor = [0 1 0];
+addMesh(scene,"polygon",{ [5 5; 10 5; 10 10; 5 10] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [15 5; 22 5; 22 12; 15 12] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [28 5; 35 5; 35 11; 28 11] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [40 5; 48 5; 48 13; 40 13] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [55 5; 63 5; 63 12; 55 12] ,[0 10]}, GreenColor);
+
+addMesh(scene,"polygon",{ [5 18; 12 18; 12 25; 5 25] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [18 18; 25 18; 25 26; 18 26] ,[0 30]}, GreenColor);
+addMesh(scene,"polygon",{ [30 18; 38 18; 38 24; 30 24] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [42 18; 50 18; 50 27; 42 27] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [55 18; 65 18; 65 25; 55 25] ,[0 10]}, GreenColor);
+
+addMesh(scene,"polygon",{ [5 32; 14 32; 14 40; 5 40] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [18 32; 26 32; 26 41; 18 41] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [30 32; 40 32; 40 38; 30 38] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [45 32; 55 32; 55 42; 45 42] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [60 32; 70 32; 70 39; 60 39] ,[0 10]}, GreenColor);
+
+addMesh(scene,"polygon",{ [5 48; 12 48; 12 58; 5 58] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [18 48; 28 48; 28 56; 18 56] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [32 48; 42 48; 42 60; 32 60] ,[0 30]}, GreenColor);
+addMesh(scene,"polygon",{ [48 48; 58 48; 58 57; 48 57] ,[0 40]}, GreenColor);
+addMesh(scene,"polygon",{ [62 48; 75 48; 75 60; 62 60] ,[0 10]}, GreenColor);
+
+addMesh(scene,"polygon",{ [5 65; 15 65; 15 75; 5 75] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [20 65; 30 65; 30 78; 20 78] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [35 65; 45 65; 45 74; 35 74] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [50 65; 60 65; 60 80; 50 80] ,[0 10]}, GreenColor);
+addMesh(scene,"polygon",{ [65 65; 80 65; 80 78; 65 78] ,[0 10]}, GreenColor);
+
+% Define trajectory.
+P1 = [2 12 -10];
+P2 = [15 12 -10];
+P3 = [15 28 -10];
+P4 = [45 28 -10];
+P5 = [45 46 -10];
+P6 = [80 46 -10];
+TPoints = [P1; P2; P3; P4; P5; P6];
+trajectory = CalculateWaypointTraj(TPoints);
+traj = waypointTrajectory("Waypoints", trajectory, "SampleRate",updateRate,"TimeOfArrival", linspace(0,simTime, size(trajectory,1))); 
+
+% Set up platform.
+RedColor = [1 0 0];
+uavPlat = uavPlatform("UAV",scene,"ReferenceFrame","NED","Trajectory", traj); 
+updateMesh(uavPlat,"quadrotor",{1.5},RedColor,eul2tform([0 0 pi])); 
+
+% Lidar Sensor
+lidarmodel = uavLidarPointCloudGenerator("UpdateRate",updateRate, ...
+    "MaxRange",20,"RangeAccuracy",0.004, ...
+    "AzimuthResolution",0.16,...
+    "ElevationLimits",[-10 70],"ElevationResolution",1.25,...
+    "HasNoise",false,...
+    "HasOrganizedOutput",true);
+lidar = uavSensor("Lidar",uavPlat,lidarmodel,MountingLocation=[0,0,1]);
+
+
+[ax,plotFrames] = show3D(scene);
+xlim("tight"); ylim("tight");zlim("tight");
+% view(2)
+title("Single UAV Flight Simulation")
+% view([25 15])
+
+hold("on")
+
+% Create a line plot for the trajectory
+tplot = plot3(nan,nan,nan,Color=[1 1 1],LineWidth=1);
+tplot.XData = traj.Waypoints(:,2);
+tplot.YData = traj.Waypoints(:,1);
+tplot.ZData = -traj.Waypoints(:,3);
+
+pt = pointCloud(nan(1,1,3));
+ptOut = cell(1,((updateRate*simTime) +1));
+
+% Create a scatter plot for the point cloud.
+colormap("jet")
+scatterplot = scatter3(nan,nan,nan,1,[0.3020 0.7451 0.9333],Parent=plotFrames.UAV.Lidar);
+scatterplot.XDataSource = "reshape(pt.Location(:,:,1),[],1)";
+scatterplot.YDataSource = "reshape(pt.Location(:,:,2),[],1)";
+scatterplot.ZDataSource = "reshape(pt.Location(:,:,3),[],1)";
+scatterplot.CDataSource = "reshape(pt.Location(:,:,3),[],1) - min(reshape(pt.Location(:,:,3),[],1))";
+
+setup(scene); 
+omap = occupancyMap3D(1);
+lidarSampleTime = [];
+
+while advance(scene)
+    [isupdated,lidarSampleTime, pt] = read(lidar);
+    if isupdated
+        % Get Lidar sensor's pose relative to NED reference frame.
+        sensorPose = getTransform(scene.TransformTree, "ENU","UAV/Lidar",lidarSampleTime);
+         % Process the simulated Lidar pointcloud.
+        ptOut = removeInvalidPoints(pt);
+        % Construct the occupancy map using Lidar readings.
+        insertPointCloud(omap,[sensorPose(1:3,4)' tform2quat(sensorPose)],ptOut,500);
+        figure(1)
+        show3D(scene,"Time",lidarSampleTime,"Parent",ax,"FastUpdate",true);
+
+        refreshdata
+        drawnow limitrate
+    end
+
+    updateSensors(scene)
+end 
+hold("off")
+
+figure(2)
+show(omap)
+xlim("tight"); ylim("tight");zlim([0 40]);
+title("3D Occupancy Map")
+
+
+%% A star
+gridPlanner = plannerAStarGrid(omap);
+path = plan(gridPlanner,P1,P6,"world");
+show(gridPlanner)
+
+%% Function to calculate points trajectory:
+function trajectory = CalculateWaypointTraj(tpoints)
+    N = 20;
+    numPoints = size(tpoints,1)-1;
+    trajectory =[];
+    % trajectory = nan([15*numPoints 3]);
+    for i = 1:numPoints
+        segment = [linspace(tpoints(i,1), tpoints(i+1,1), N)', ...
+                   linspace(tpoints(i,2), tpoints(i+1,2), N)', ...
+                   linspace(tpoints(i,3), tpoints(i+1,3), N)'];
+        trajectory = [trajectory; segment]; %#ok<AGROW>
+    end
+end
