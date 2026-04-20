@@ -1,4 +1,4 @@
-# MULTI-UAV-PATH-PLANNER
+# MultiUAV_PathPlanner
 
 REFERENCES:
 https://la.mathworks.com/help/uav/ug/motion-planning-with-rrt-for-fixed-wing-uav.html
